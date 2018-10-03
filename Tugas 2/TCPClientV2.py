@@ -1,6 +1,6 @@
 from socket import *
 serverName = 'localhost'
-serverPort = 12000
+serverPort = 8023
 clientSocket = socket(AF_INET, SOCK_STREAM)
 clientSocket.connect((serverName,serverPort))
 sentence = input('Input lowercase sentence:')

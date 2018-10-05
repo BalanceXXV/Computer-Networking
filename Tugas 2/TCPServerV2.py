@@ -4,12 +4,12 @@ import platform
 import re
 import _thread as thread
 try:
-	import httplib
+    import httplib
 except:
-	import http.client as httplib
+    import http.client as httplib
 
 def main():
-        serverPort = 23
+        serverPort = 8023
         serverSocket = socket(AF_INET,SOCK_STREAM)
         serverSocket.bind(('',serverPort))
         serverSocket.listen(1)
@@ -20,25 +20,31 @@ def main():
         connectionSocket.close()
 
 def new_client(clientSocket, addr):
-	while True:
-        	sentence = clientSocket.recv(1024)
-        	output = ''
-        	if (sentence==b"cpu"):
-                	output += cpuInfo()
-        	if (sentence==b"meminfo"):
-                	output += memInfo()
-        	if (sentence==b"memswap"):
-                	output += memSwap()
-        	if (sentence==b"storage"):
-                	output += "Storage Memory:\n"
-                	output += os.popen("df").read()
-        	if (sentence==b"internet"):
-                	if check_internet():
-                                output+="Server Status: Online"
-                	else:
-                                output+="Server Status: Offline"
-        	clientSocket.send(output.encode('utf-8'))
-	clientSocket.close()
+    while True:
+            sentence = clientSocket.recv(1024)
+            output = ''
+            if (b"all" in sentence):
+                    fullReport = True
+            else:
+                    fullReport = False
+            if (b"cpuinfo" in sentence) or fullReport:
+                    output += cpuInfo()
+            if (b"meminfo" in sentence) or fullReport:
+                    output += memInfo()
+            if (b"memswap" in sentence) or fullReport:
+                    output += memSwap()
+            if (b"storage" in sentence) or fullReport:
+                    output += "[STORAGE MEMORY]\n"
+                    output += os.popen("df").read()
+            if (b"internet" in sentence) or fullReport:
+                    if check_internet():
+                                output+="[SERVER STATUS: ONLINE]\n"
+                    else:
+                                output+="[SERVER STATUS: OFFLINE]\n"
+            if (b'access' in sentence) or fullReport:
+                    output += serverAccess()
+            clientSocket.send(output.encode('utf-8'))
+    clientSocket.close()
 
 def check_internet():
     conn = httplib.HTTPConnection("www.google.com", timeout=5)
@@ -51,15 +57,21 @@ def check_internet():
         return False
 
 def cpuInfo():
-        cpuInfo = "CPU Info:\n"
-        cpuInfo += "Architecture	: "+platform.architecture()[0]+"\n"
+        cpuInfo = "[CPU INFO]\n"
+        cpuInfo += "Architecture    : "+platform.architecture()[0]+"\n"
         cpuInfo += os.popen("cat /proc/cpuinfo | grep 'model name'").read()
-        cpuInfo += os.popen("lscpu | grep 'cache'").read()
+        l1_cache = os.popen("lscpu | grep 'L1'").read().split("\n")
+        cpuInfo += "L1d cache: " + l1_cache[0].split(" ")[-1] + "\n"
+        cpuInfo += "L1i cache: " + l1_cache[1].split(" ")[-1] + "\n"
+        l2_cache = os.popen("lscpu | grep 'L2'").read().split(" ")
+        cpuInfo += "L2 cache: " + l2_cache[-1]
+        l3_cache = os.popen("lscpu | grep 'L3'").read().split(" ")
+        cpuInfo += "L3 cache: " + l3_cache[-1]
         cpuInfo = cpuInfo.replace("\t", "")
         return cpuInfo
 
 def memInfo():
-        memInfo = "Memory Info:\n"
+        memInfo = "[PHYSICAL MEMORY INFO]\n"
         memTotal = os.popen("cat /proc/meminfo | grep 'MemTotal'").read()
         memTotal = int(re.search('\d+', memTotal).group())
         memFree = os.popen("cat /proc/meminfo | grep 'MemFree'").read()
@@ -71,7 +83,7 @@ def memInfo():
         return memInfo
 
 def memSwap():
-        swapMem = "Swap Memory:\n" 
+        swapMem = "[SWAP MEMORY INFO]\n" 
         swapTotal = os.popen("cat /proc/meminfo | grep 'SwapTotal'").read()
         swapTotal = int(re.search('\d+', swapTotal).group())
         swapFree = os.popen("cat /proc/meminfo | grep 'SwapFree'").read()
@@ -82,5 +94,19 @@ def memSwap():
         swapMem += "Swap Free: " + str(swapFree) + "\n"
         return swapMem
 
+def serverAccess():
+        serverAccess = "[SUCCESSFUL SERVER ACCESS]\n"
+        successfulUser = os.popen("last").read().split("\n")
+        for i in range(0,10):
+            if i < len(successfulUser):
+                serverAccess += successfulUser[i]+"\n"
+        serverAccess += "[FAILED SERVER ACCESS]\n"
+        failedUser = os.popen("lastb").read().split("\n")
+        for i in range(0,10):
+            if i < len(failedUser):
+                serverAccess += failedUser[i]+"\n"
+        return serverAccess
+
 if __name__ == '__main__':
     main()
+
